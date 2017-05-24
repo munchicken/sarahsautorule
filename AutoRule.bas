@@ -6,16 +6,16 @@ Attribute VB_Name = "AutoRule"
 '*****  By:  Sarah Pierce
 
 Sub AutoRule()
-    Dim myOlExp     As Outlook.Explorer
-    Dim myOlSel     As Outlook.Selection
-    Dim oMail       As Outlook.MailItem
-    Dim strSender   As String
-    Dim oInbox      As Outlook.Folder
-    Dim oGrpFolder  As Outlook.Folder
-    Dim strNote     As String
-    Dim colRules    As Outlook.Rules
-    Dim oRule       As Outlook.Rule
-    Dim blnFound    As Boolean
+    Dim myOlExp         As Outlook.Explorer
+    Dim myOlSel         As Outlook.Selection
+    Dim oMail           As Outlook.MailItem
+    Dim strSender       As String
+    Dim oInbox          As Outlook.Folder
+    Dim oGrpFolder      As Outlook.Folder
+    Dim strNote         As String
+    Dim colRules        As Outlook.Rules
+    Dim oRule           As Outlook.Rule
+    Dim blnFound        As Boolean
 
     
     'get the currently selected email
@@ -31,15 +31,24 @@ Sub AutoRule()
         If UCase(oRule.Name) = UCase(strSender) Then
             blnFound = True
             strNote = strNote + vbNewLine + "Existing rule found"
+            
+            'is this a new email address?
+            For j = 0 To oRule.Conditions.From.Recipients.Count - 1
+                strNote = strNote + vbNewLine + oRule.Conditions.From.Recipients.Item(j + 1).Address
+            Next j
+            
             Exit For
         End If
     Next
     
-    'setup move folder
-    Set oInbox = Application.Session.GetDefaultFolder(olFolderInbox)
-    Set oGrpFolder = oInbox.Folders("Contact Groups")
-    'For i = 1 To oGrpFolder.Folders.Count
+    'skip if existing rule found
+    If blnFound = False Then
         
+        'setup move folder
+        Set oInbox = Application.Session.GetDefaultFolder(olFolderInbox)
+        Set oGrpFolder = oInbox.Folders("Contact Groups")
+        'For i = 1 To oGrpFolder.Folders.Count
+    End If
     
     'for testing
     strNote = strNote + vbNewLine + "note"
