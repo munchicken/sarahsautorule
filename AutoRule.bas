@@ -2,6 +2,7 @@ Attribute VB_Name = "AutoRule"
 '*****  AutoRule
 '*****  Outlook VBA Macro to automatically create a rule from the selected email
 '*****  Based on the MS product team article "Best practices for Outlook 2010"
+'*****  Uses "Contact Groups" folder under Inbox for storing group email
 '*****  By:  Sarah Pierce
 
 Sub AutoRule()
@@ -11,12 +12,28 @@ Sub AutoRule()
     Dim strSender   As String
     Dim oInbox      As Outlook.Folder
     Dim oGrpFolder  As Outlook.Folder
+    Dim strNote     As String
+    Dim colRules    As Outlook.Rules
+    Dim oRule       As Outlook.Rule
+    Dim blnFound    As Boolean
 
     
     'get the currently selected email
     Set myOlExp = Application.ActiveExplorer
     Set myOlSel = myOlExp.Selection
-    Set oMail = myOlSel.Item(1)
+    Set oMail = myOlSel.Item(1) 'the selected email
+    strSender = oMail.Sender
+    strNote = "Current email from: " + strSender
+    
+    'check for existing rule
+    Set colRules = Application.Session.DefaultStore.GetRules()
+    For Each oRule In colRules
+        If UCase(oRule.Name) = UCase(strSender) Then
+            blnFound = True
+            strNote = strNote + vbNewLine + "Existing rule found"
+            Exit For
+        End If
+    Next
     
     'setup move folder
     Set oInbox = Application.Session.GetDefaultFolder(olFolderInbox)
@@ -25,7 +42,9 @@ Sub AutoRule()
         
     
     'for testing
-    strSender = oMail.Sender
-    MsgBox (UCase(strSender))
-    MsgBox (oGrpFolder.Folders.Count)
+    strNote = strNote + vbNewLine + "note"
+    UserForm1.Label1.Caption = strNote
+    UserForm1.Show
+    'MsgBox (UCase(strSender))
+    'MsgBox (oGrpFolder.Folders.Count)
 End Sub
