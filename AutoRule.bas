@@ -17,8 +17,10 @@ Sub AutoRule()
     Dim oRule           As Outlook.Rule
     Dim blnFoundRule    As Boolean
     Dim blnFoundAdd     As Boolean
+    Dim blnFoundFolder  As Boolean
     
     blnFoundAdd = False
+    blnFoundFolder = False
     
     'get the currently selected email
     Set myOlExp = Application.ActiveExplorer
@@ -59,10 +61,22 @@ Sub AutoRule()
     'skip if existing rule found
     If blnFoundRule = False Then
         
-        'setup move folder
+        'does group folder exist?
         Set oInbox = Application.Session.GetDefaultFolder(olFolderInbox)
+        For i = 1 To oInbox.Folders.Count
+            If oInbox.Folders(i) = "Contact Groups" Then
+                blnFoundFolder = True
+                strNote = strNote + vbNewLine + "Group folder exists"
+                Exit For
+            End If
+        Next i
+        'create group folder
+        If blnFoundFolder = False Then
+            oInbox.Folders.Add ("Contact Groups")
+            strNote = strNote + vbNewLine + "Group folder doesn't exist"
+        End If
+        'setup move folder
         Set oGrpFolder = oInbox.Folders("Contact Groups")
-        'For i = 1 To oGrpFolder.Folders.Count
     End If
     
     'for testing
@@ -71,4 +85,5 @@ Sub AutoRule()
     UserForm1.Show
     'MsgBox (UCase(strSender))
     'MsgBox (oGrpFolder.Folders.Count)
+    'MsgBox (oInbox.Folders.Count)
 End Sub
