@@ -15,8 +15,10 @@ Sub AutoRule()
     Dim strNote         As String
     Dim colRules        As Outlook.Rules
     Dim oRule           As Outlook.Rule
-    Dim blnFound        As Boolean
-
+    Dim blnFoundRule    As Boolean
+    Dim blnFoundAdd     As Boolean
+    
+    blnFoundAdd = False
     
     'get the currently selected email
     Set myOlExp = Application.ActiveExplorer
@@ -29,20 +31,33 @@ Sub AutoRule()
     Set colRules = Application.Session.DefaultStore.GetRules()
     For Each oRule In colRules
         If UCase(oRule.Name) = UCase(strSender) Then
-            blnFound = True
+            blnFoundRule = True
             strNote = strNote + vbNewLine + "Existing rule found"
             
             'is this a new email address?
             For j = 0 To oRule.Conditions.From.Recipients.Count - 1
-                strNote = strNote + vbNewLine + oRule.Conditions.From.Recipients.Item(j + 1).Address
+                strNote = strNote + vbNewLine + "Address(es) from Rules: " + oRule.Conditions.From.Recipients.Item(j + 1).Address
+                strNote = strNote + vbNewLine + "Address from Email: " + oMail.SenderEmailAddress
+                If oRule.Conditions.From.Recipients.Item(j + 1).Address = oMail.SenderEmailAddress Then
+                    blnFoundAdd = True
+                    strNote = strNote + vbNewLine + "Not a new email address"
+                    Exit For
+                End If
             Next j
-            
+                        
+            'add new email address
+            If blnFoundAdd = False Then
+                oRule.Conditions.From.Recipients.Add (oMail.SenderEmailAddress)
+                oRule.Conditions.From.Recipients.ResolveAll
+                colRules.Save
+                strNote = strNote + vbNewLine + "This is a new email address"
+            End If
             Exit For
         End If
     Next
     
     'skip if existing rule found
-    If blnFound = False Then
+    If blnFoundRule = False Then
         
         'setup move folder
         Set oInbox = Application.Session.GetDefaultFolder(olFolderInbox)
