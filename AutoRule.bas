@@ -18,9 +18,11 @@ Sub AutoRule()
     Dim blnFoundRule    As Boolean
     Dim blnFoundAdd     As Boolean
     Dim blnFoundFolder  As Boolean
+    Dim blnFoundTarget  As Boolean
     
     blnFoundAdd = False
     blnFoundFolder = False
+    blnFoundTarget = False
     
     'get the currently selected email
     Set myOlExp = Application.ActiveExplorer
@@ -75,8 +77,20 @@ Sub AutoRule()
             oInbox.Folders.Add ("Contact Groups")
             strNote = strNote + vbNewLine + "Group folder doesn't exist"
         End If
-        'setup move folder
+        'does target folder exist?
         Set oGrpFolder = oInbox.Folders("Contact Groups")
+        For i = 1 To oGrpFolder.Folders.Count
+            If oGrpFolder.Folders(i) = strSender Or oGrpFolder.Folders(i) = oMail.SenderEmailAddress Then
+                blnFoundTarget = True
+                strNote = strNote + vbNewLine + "Target folder exists"
+                Exit For
+            End If
+        Next i
+        'create target folder
+        If blnFoundTarget = False Then
+            oGrpFolder.Folders.Add (strSender)
+            strNote = strNote + vbNewLine + "Target folder doesn't exist"
+        End If
     End If
     
     'for testing
