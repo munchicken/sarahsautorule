@@ -1,16 +1,16 @@
 # Sarah's AutoRule
 
-####Description:
+#### Description:
 
     Outlook VBA Macro to automatically create a "Contact Group" rule from the selected email
     
     Based on the MS product team article "Best practices for Outlook 2010" (https://support.office.com/en-us/article/Best-practices-for-Outlook-2010-f90e5f69-8832-4d89-95b3-bfdf76c82ef8)
     
-####Instructions:
+#### Instructions:
 
     Run the macro on an email that is selected in the Outlook Explorer that you want automatically moved to a "Contact Group" folder
     
-####Actions:
+#### Actions:
 
     It checks to see if there is an existing rule for this sender
     
@@ -38,13 +38,13 @@
     
       If you choose not to delete the email, but rather run AutoRule on it, then it assumes you just want to move it to the proper folder and does so
       
-####Notes:
+#### Notes:
 
     The notification box indicates all actions taken
     
     You can check & modify any created rules in the Outlook Rules & Alerts Manager
     
-####Installation:
+#### Installation:
 
     Download the module (SarahsAutoRule.bas) & forms (SarahsAutoRuleUserForm .frm & .frx)
     
