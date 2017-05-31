@@ -4,8 +4,7 @@
 
     Outlook VBA Macro to automatically create a "Contact Group" rule from the selected email
     
-    Based on the MS product team article "Best practices for Outlook 2010"
-    https://support.office.com/en-us/article/Best-practices-for-Outlook-2010-f90e5f69-8832-4d89-95b3-bfdf76c82ef8
+    Based on the MS product team article ["Best practices for Outlook 2010"](https://support.office.com/en-us/article/Best-practices-for-Outlook-2010-f90e5f69-8832-4d89-95b3-bfdf76c82ef8)
     
 #### Instructions:
 
