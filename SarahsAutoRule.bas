@@ -75,7 +75,6 @@ Sub AutoRule()
     
     'check to see if we are in the Inbox
     Set oCurrentFolder = oMail.Parent
-    MsgBox (oCurrentFolder)
     If oCurrentFolder <> "Inbox" Then
         Notify ("Selected email is not in the Inbox.  AutoRule must be run on item in Inbox.")
         SarahsAutoRuleUserForm.Label1.ForeColor = vbRed
@@ -216,8 +215,9 @@ Sub AutoRule()
         oRule.Execute ShowProgress:=True
     End If
     
-    'for testing
+    'when complete
     Notify ("Sarah's AutoRule finished")
+    SarahsAutoRuleUserForm.OkButton.Visible = True
 End Sub
 
 'creates notification messages on form
