@@ -33,29 +33,30 @@ Attribute VB_Name = "SarahsAutoRule"
 '*****  By:  Sarah Pierce
 
 'globals
+Dim myOlExp         As Outlook.Explorer
+Dim myOlSel         As Outlook.Selection
+Dim oGrpFolder      As Outlook.Folder
+Dim colRules        As Outlook.Rules
 Dim strNote         As String
 Dim oTargetFolder   As Outlook.Folder
 Dim oMail           As Outlook.MailItem
 Dim oRule           As Outlook.Rule
+Dim oInbox          As Outlook.Folder
+Dim oMovedMail      As Outlook.MailItem
+Dim oFromCond       As Outlook.ToOrFromRuleCondition
+Dim oMoveAction     As Outlook.MoveOrCopyRuleAction
+Dim oStopAction     As Outlook.RuleAction
+Dim oExceptMe       As Outlook.RuleCondition
+Dim oExceptWords    As Outlook.TextRuleCondition
+Dim oCurrentFolder  As Outlook.Folder
 
 'main subroutine
 Sub AutoRule()
-    Dim myOlExp         As Outlook.Explorer
-    Dim myOlSel         As Outlook.Selection
     Dim strSender       As String
-    Dim oInbox          As Outlook.Folder
-    Dim oGrpFolder      As Outlook.Folder
-    Dim colRules        As Outlook.Rules
     Dim blnFoundRule    As Boolean
     Dim blnFoundAdd     As Boolean
     Dim blnFoundFolder  As Boolean
     Dim blnFoundTarget  As Boolean
-    Dim oFromCond       As Outlook.ToOrFromRuleCondition
-    Dim oMoveAction     As Outlook.MoveOrCopyRuleAction
-    Dim oStopAction     As Outlook.RuleAction
-    Dim oExceptMe       As Outlook.RuleCondition
-    Dim oExceptWords    As Outlook.TextRuleCondition
-    Dim oCurrentFolder  As Outlook.Folder
     
     'initialize
     blnFoundAdd = False
@@ -72,12 +73,15 @@ Sub AutoRule()
     Set myOlSel = myOlExp.Selection
     Set oMail = myOlSel.Item(1) 'the selected email
     strSender = oMail.Sender
+    Set oInbox = Application.Session.GetDefaultFolder(olFolderInbox)
     
     'check to see if we are in the Inbox
     Set oCurrentFolder = oMail.Parent
     If oCurrentFolder <> "Inbox" Then
-        Notify ("Selected email is not in the Inbox.  AutoRule must be run on item in Inbox.")
+        Notify ("  Selected email is not in the Inbox.  AutoRule must be run on item in Inbox.")
         SarahsAutoRuleUserForm.Label1.ForeColor = vbRed
+        Notify ("Sarah's AutoRule finished")
+        SarahsAutoRuleUserForm.OkButton.Visible = True
         Exit Sub
     End If
     
@@ -88,17 +92,17 @@ Sub AutoRule()
         'rule exists
         If UCase(oRule.Name) = UCase(strSender) Then
             blnFoundRule = True
-            Notify ("Existing rule found for: " + strSender)
+            Notify ("  Existing rule found for: " + strSender)
             
             'is this an external email?
             If oMail.SenderEmailType = "SMTP" Then
-                Notify ("This is an external email address")
+                Notify ("  This is an external email address")
                 
                 'is this a new email address?
                 For j = 0 To oRule.Conditions.From.Recipients.Count - 1
                     If oRule.Conditions.From.Recipients.Item(j + 1).Address = oMail.SenderEmailAddress Then
                         blnFoundAdd = True
-                        Notify ("This is not a new email address for: " + strSender)
+                        Notify ("  This is not a new email address for: " + strSender)
                         
                         'move it to the correct folder (assumes user looked at email, which was an exception, and wants it out of inbox, otherwise they would delete it)
                         MoveIt
@@ -111,17 +115,17 @@ Sub AutoRule()
                     oRule.Conditions.From.Recipients.Add (oMail.SenderEmailAddress)
                     oRule.Conditions.From.Recipients.ResolveAll
                     colRules.Save
-                    Notify ("Added new email address for " + strSender + " to existing rule")
+                    Notify ("  Added new email address for " + strSender + " to existing rule")
                     
                     're-run rule with new address
-                    Notify ("Re-Running rule for: " + strSender + " with new email address, please stand by")
+                    Notify ("  Re-Running rule for: " + strSender + " with new email address, please stand by")
                     oRule.Execute ShowProgress:=True
                 End If
                 Exit For
             
             'this is an internal email
             Else
-                Notify ("This is an internal email address")
+                Notify ("  This is an internal email address")
                 'move it to the correct folder (assumes user looked at email, which was an exception, and wants it out of inbox, otherwise they would delete it)
                 MoveIt
             End If
@@ -131,14 +135,13 @@ Sub AutoRule()
     'rule not found, skip if existing rule found
     If blnFoundRule = False Then
     
-        Notify ("Creating new rule for: " + strSender)
+        Notify ("  Creating new rule for: " + strSender)
         
         'does group folder exist?
-        Set oInbox = Application.Session.GetDefaultFolder(olFolderInbox)
         For i = 1 To oInbox.Folders.Count
             If oInbox.Folders(i) = "Contact Groups" Then
                 blnFoundFolder = True
-                Notify ("Group folder exists")
+                Notify ("  Group folder exists")
                 Exit For
             End If
         Next i
@@ -146,7 +149,7 @@ Sub AutoRule()
         'create group folder
         If blnFoundFolder = False Then
             oInbox.Folders.Add ("Contact Groups")
-            Notify ("Group folder doesn't exist, creating")
+            Notify ("  Group folder doesn't exist, creating")
         End If
         
         'does target folder exist?
@@ -155,7 +158,7 @@ Sub AutoRule()
             If oGrpFolder.Folders(i) = strSender Or oGrpFolder.Folders(i) = oMail.SenderEmailAddress Then
                 blnFoundTarget = True
                 Set oTargetFolder = oGrpFolder.Folders(i)
-                Notify (strSender + " folder exists")
+                Notify ("  " + strSender + " folder exists")
                 Exit For
             End If
         Next i
@@ -164,7 +167,7 @@ Sub AutoRule()
         If blnFoundTarget = False Then
             oGrpFolder.Folders.Add (strSender)
             Set oTargetFolder = oGrpFolder.Folders(strSender)
-            Notify (strSender + " folder doesn't exist, creating")
+            Notify ("  " + strSender + " folder doesn't exist, creating")
         End If
         
         'add new rule
@@ -208,16 +211,21 @@ Sub AutoRule()
         
         'save rules
         colRules.Save
-        Notify ("Creating new rule for: " + strSender + ", please stand by")
+        Notify ("  Creating new rule for: " + strSender + ", please stand by")
         
         'run new rule
-        Notify ("Running new rule for: " + strSender + ", please stand by")
+        Notify ("  Running new rule for: " + strSender + ", please stand by")
         oRule.Execute ShowProgress:=True
     End If
     
     'when complete
     Notify ("Sarah's AutoRule finished")
     SarahsAutoRuleUserForm.OkButton.Visible = True
+    SarahsAutoRuleUserForm.UndoButton.Visible = True
+    
+    'handle Undo
+    '  writing here, then transferring to form
+
 End Sub
 
 'creates notification messages on form
@@ -229,6 +237,31 @@ End Sub
 'moves email to proper folder
 Sub MoveIt()
     Set oTargetFolder = oRule.Actions.MoveToFolder.Folder
-    oMail.Move oTargetFolder
-    Notify ("Email moved to " + strSender + " folder")
+    Set oMovedMail = oMail.Move(oTargetFolder)
+    Notify ("  Email moved to " + oMovedMail.Parent + " folder")
+End Sub
+
+'moves email back to Inbox
+Sub MoveBack()
+    Set oMail = oMovedMail.Move(oInbox)
+    Notify ("  Email moved back to " + oMail.Parent + " folder")
+End Sub
+
+'free objects
+Sub FreeEm()
+    Set oTargetFolder = Nothing
+    Set oMail = Nothing
+    Set oRule = Nothing
+    Set oInbox = Nothing
+    Set oMovedMail = Nothing
+    Set myOlExp = Nothing
+    Set myOlSel = Nothing
+    Set oGrpFolder = Nothing
+    Set colRules = Nothing
+    Set oFromCond = Nothing
+    Set oMoveAction = Nothing
+    Set oStopAction = Nothing
+    Set oExceptMe = Nothing
+    Set oExceptWords = Nothing
+    Set oCurrentFolder = Nothing
 End Sub
