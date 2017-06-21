@@ -2,53 +2,12 @@ Attribute VB_Name = "SarahsAutoRule"
 '*****  Sarah's AutoRule
 '*****  Description:
 '*****    Outlook VBA Macro to automatically create a "Contact Group" rule from the selected email
-'*****    Based on the MS product team article "Best practices for Outlook 2010" (https://support.office.com/en-us/article/Best-practices-for-Outlook-2010-f90e5f69-8832-4d89-95b3-bfdf76c82ef8)
-'*****  Instructions:
-'*****    Run the macro on an email in the Inbox which is selected in the Outlook Explorer that you want automatically moved to a "Contact Group" folder
-'*****  Actions:
-'*****    It checks to see if there is an existing rule for this sender
-'*****    If there is not an exising rule, then it creates one with the following settings:
-'*****      Move messages from "Sender" to "Folder"
-'*****      It checks for a "Contact Groups" folder, and creates one if necessary
-'*****      It then checks for a folder in Contact Groups named "Sender", and creates one if necessary
-'*****      Except if users name is in the To or Cc box
-'*****      Except if "specific words" are in the subject or body (see the array below marked with "+++++" if you would like to change these)
-'*****      Stop processing more rules
-'*****      It moves the new rule to the bottom of the rule list
-'*****      It then runs the new rule
-'*****    If there is an existing rule, it checks to see if this is a new email address, if so it adds it to the existing rule and re-runs the rule
-'*****    If the rule exists and has the correct email addresses, then this email is in your Inbox due to one of the exceptions
-'*****      If you choose not to delete the email, but rather run AutoRule on it, then it assumes you just want to move it to the proper folder and does so
-'*****  Notes:
-'*****    The notification box indicates all actions taken
-'*****    You can check & modify any created rules in the Outlook Rules & Alerts Manager
-'*****  Installation:
-'*****    Download the module (SarahsAutoRule.bas) & forms (SarahsAutoRuleUserForm .frm & .frx)
-'*****    Enable the "Developer" tab on the Outlook ribbon
-'*****    From the Developer tab, click Visual Basic to open the editor
-'*****    Under "Froms" in the Project Explorer (left), import the two forms
-'*****    Under "Modules", import the module
-'*****    The macro can be run from from the Developer tab or can be placed in a menu like the ribbon, etc.
-'*****    You may need to adjust your Macro security settings (macro can also be self-signed with SelfCert, if desired)
 '*****  By:  Sarah Pierce
 
+Option Explicit
+
 'globals
-Dim myOlExp         As Outlook.Explorer
-Dim myOlSel         As Outlook.Selection
-Dim oGrpFolder      As Outlook.Folder
-Dim colRules        As Outlook.Rules
-Dim strNote         As String
-Dim oTargetFolder   As Outlook.Folder
-Dim oMail           As Outlook.MailItem
-Dim oRule           As Outlook.Rule
-Dim oInbox          As Outlook.Folder
-Dim oMovedMail      As Outlook.MailItem
-Dim oFromCond       As Outlook.ToOrFromRuleCondition
-Dim oMoveAction     As Outlook.MoveOrCopyRuleAction
-Dim oStopAction     As Outlook.RuleAction
-Dim oExceptMe       As Outlook.RuleCondition
-Dim oExceptWords    As Outlook.TextRuleCondition
-Dim oCurrentFolder  As Outlook.Folder
+Dim m_strNote As String
 
 'main subroutine
 Sub AutoRule()
@@ -57,16 +16,34 @@ Sub AutoRule()
     Dim blnFoundAdd     As Boolean
     Dim blnFoundFolder  As Boolean
     Dim blnFoundTarget  As Boolean
+    Dim i               As Integer
+    Dim oRule           As Outlook.Rule
+    Dim blnDone         As Boolean
+    Dim myOlExp         As Outlook.Explorer
+    Dim myOlSel         As Outlook.Selection
+    Dim oGrpFolder      As Outlook.Folder
+    Dim colRules        As Outlook.Rules
+    Dim oTargetFolder   As Outlook.Folder
+    Dim oMail           As Outlook.MailItem
+    Dim oInbox          As Outlook.Folder
+    Dim oFromCond       As Outlook.ToOrFromRuleCondition
+    Dim oMoveAction     As Outlook.MoveOrCopyRuleAction
+    Dim oStopAction     As Outlook.RuleAction
+    Dim oExceptMe       As Outlook.RuleCondition
+    Dim oExceptWords    As Outlook.TextRuleCondition
+    Dim oCurrentFolder  As Outlook.Folder
     
     'initialize
     blnFoundAdd = False
     blnFoundFolder = False
     blnFoundTarget = False
-    strNote = ""
+    m_strNote = ""
+    blnDone = False
+    blnFoundRule = False
     
     'show notification box
     SarahsAutoRuleUserForm.Show
-    Notify ("Sarah's AutoRule starting...")
+    Call Notify("Sarah's AutoRule starting...")
     
     'get the currently selected email
     Set myOlExp = Application.ActiveExplorer
@@ -78,9 +55,9 @@ Sub AutoRule()
     'check to see if we are in the Inbox
     Set oCurrentFolder = oMail.Parent
     If oCurrentFolder <> "Inbox" Then
-        Notify ("  Selected email is not in the Inbox.  AutoRule must be run on item in Inbox.")
+        Call Notify("  Selected email is not in the Inbox.  AutoRule must be run on item in Inbox.")
         SarahsAutoRuleUserForm.Label1.ForeColor = vbRed
-        Notify ("Sarah's AutoRule finished")
+        Call Notify("Sarah's AutoRule finished")
         SarahsAutoRuleUserForm.OkButton.Visible = True
         Exit Sub
     End If
@@ -92,42 +69,42 @@ Sub AutoRule()
         'rule exists
         If UCase(oRule.Name) = UCase(strSender) Then
             blnFoundRule = True
-            Notify ("  Existing rule found for: " + strSender)
+            Call Notify("  Existing rule found for: " + strSender)
             
             'is this an external email?
             If oMail.SenderEmailType = "SMTP" Then
-                Notify ("  This is an external email address")
+                Call Notify("  This is an external email address")
                 
                 'is this a new email address?
-                For j = 0 To oRule.Conditions.From.Recipients.Count - 1
-                    If oRule.Conditions.From.Recipients.Item(j + 1).Address = oMail.SenderEmailAddress Then
+                For i = 0 To oRule.Conditions.From.Recipients.Count - 1
+                    If oRule.Conditions.From.Recipients.Item(i + 1).Address = oMail.SenderEmailAddress Then
                         blnFoundAdd = True
-                        Notify ("  This is not a new email address for: " + strSender)
+                        Call Notify("  This is not a new email address for: " + strSender)
                         
                         'move it to the correct folder (assumes user looked at email, which was an exception, and wants it out of inbox, otherwise they would delete it)
-                        MoveIt
+                        Call MoveIt(oRule, oMail)
                         Exit For
                     End If
-                Next j
+                Next i
                             
                 'add new email address
                 If blnFoundAdd = False Then
                     oRule.Conditions.From.Recipients.Add (oMail.SenderEmailAddress)
                     oRule.Conditions.From.Recipients.ResolveAll
                     colRules.Save
-                    Notify ("  Added new email address for " + strSender + " to existing rule")
+                    Call Notify("  Added new email address for " + strSender + " to existing rule")
                     
                     're-run rule with new address
-                    Notify ("  Re-Running rule for: " + strSender + " with new email address, please stand by")
+                    Call Notify("  Re-Running rule for: " + strSender + " with new email address, please stand by")
                     oRule.Execute ShowProgress:=True
                 End If
                 Exit For
             
             'this is an internal email
             Else
-                Notify ("  This is an internal email address")
+                Call Notify("  This is an internal email address")
                 'move it to the correct folder (assumes user looked at email, which was an exception, and wants it out of inbox, otherwise they would delete it)
-                MoveIt
+                Call MoveIt(oRule, oMail)
             End If
         End If
     Next
@@ -135,13 +112,13 @@ Sub AutoRule()
     'rule not found, skip if existing rule found
     If blnFoundRule = False Then
     
-        Notify ("  Creating new rule for: " + strSender)
+        Call Notify("  Creating new rule for: " + strSender)
         
         'does group folder exist?
         For i = 1 To oInbox.Folders.Count
             If oInbox.Folders(i) = "Contact Groups" Then
                 blnFoundFolder = True
-                Notify ("  Group folder exists")
+                Call Notify("  Group folder exists")
                 Exit For
             End If
         Next i
@@ -149,7 +126,7 @@ Sub AutoRule()
         'create group folder
         If blnFoundFolder = False Then
             oInbox.Folders.Add ("Contact Groups")
-            Notify ("  Group folder doesn't exist, creating")
+            Call Notify("  Group folder doesn't exist, creating")
         End If
         
         'does target folder exist?
@@ -158,7 +135,7 @@ Sub AutoRule()
             If oGrpFolder.Folders(i) = strSender Or oGrpFolder.Folders(i) = oMail.SenderEmailAddress Then
                 blnFoundTarget = True
                 Set oTargetFolder = oGrpFolder.Folders(i)
-                Notify ("  " + strSender + " folder exists")
+                Call Notify("  " + strSender + " folder exists")
                 Exit For
             End If
         Next i
@@ -167,7 +144,7 @@ Sub AutoRule()
         If blnFoundTarget = False Then
             oGrpFolder.Folders.Add (strSender)
             Set oTargetFolder = oGrpFolder.Folders(strSender)
-            Notify ("  " + strSender + " folder doesn't exist, creating")
+            Call Notify("  " + strSender + " folder doesn't exist, creating")
         End If
         
         'add new rule
@@ -211,57 +188,54 @@ Sub AutoRule()
         
         'save rules
         colRules.Save
-        Notify ("  Creating new rule for: " + strSender + ", please stand by")
+        Call Notify("  Creating new rule for: " + strSender + ", please stand by")
         
         'run new rule
-        Notify ("  Running new rule for: " + strSender + ", please stand by")
+        Call Notify("  Running new rule for: " + strSender + ", please stand by")
         oRule.Execute ShowProgress:=True
     End If
     
     'when complete
-    Notify ("Sarah's AutoRule finished")
+    Call Notify("Sarah's AutoRule finished")
     SarahsAutoRuleUserForm.OkButton.Visible = True
-    SarahsAutoRuleUserForm.UndoButton.Visible = True
     
-    'handle Undo
-    '  writing here, then transferring to form
-
+    'free objects
+    If blnDone Then
+        Set oTargetFolder = Nothing
+        Set oMail = Nothing
+        Set oRule = Nothing
+        Set oInbox = Nothing
+        Set myOlExp = Nothing
+        Set myOlSel = Nothing
+        Set oGrpFolder = Nothing
+        Set colRules = Nothing
+        Set oFromCond = Nothing
+        Set oMoveAction = Nothing
+        Set oStopAction = Nothing
+        Set oExceptMe = Nothing
+        Set oExceptWords = Nothing
+        Set oCurrentFolder = Nothing
+    End If
+    
 End Sub
 
 'creates notification messages on form
 Sub Notify(message)
-    strNote = strNote + vbNewLine + message
-    SarahsAutoRuleUserForm.Label1.Caption = strNote
+    m_strNote = m_strNote + vbNewLine + message
+    SarahsAutoRuleUserForm.Label1.Caption = m_strNote
 End Sub
 
 'moves email to proper folder
-Sub MoveIt()
+Sub MoveIt(oRule As Outlook.Rule, oMail As Outlook.MailItem)
+    Dim oMovedMail As Outlook.MailItem
+    Dim oTargetFolder   As Outlook.Folder
+    
     Set oTargetFolder = oRule.Actions.MoveToFolder.Folder
     Set oMovedMail = oMail.Move(oTargetFolder)
-    Notify ("  Email moved to " + oMovedMail.Parent + " folder")
-End Sub
-
-'moves email back to Inbox
-Sub MoveBack()
-    Set oMail = oMovedMail.Move(oInbox)
-    Notify ("  Email moved back to " + oMail.Parent + " folder")
-End Sub
-
-'free objects
-Sub FreeEm()
-    Set oTargetFolder = Nothing
-    Set oMail = Nothing
-    Set oRule = Nothing
-    Set oInbox = Nothing
+    Call Notify("  Email moved to " + oMovedMail.Parent + " folder")
+    
     Set oMovedMail = Nothing
-    Set myOlExp = Nothing
-    Set myOlSel = Nothing
-    Set oGrpFolder = Nothing
-    Set colRules = Nothing
-    Set oFromCond = Nothing
-    Set oMoveAction = Nothing
-    Set oStopAction = Nothing
-    Set oExceptMe = Nothing
-    Set oExceptWords = Nothing
-    Set oCurrentFolder = Nothing
+    Set oTargetFolder = Nothing
 End Sub
+
+

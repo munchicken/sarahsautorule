@@ -15,13 +15,7 @@ Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = False
 Private Sub OkButton_Click()
-    FreeEm
+    blnDone = True
     Unload Me
 End Sub
 
-Private Sub UndoButton_Click()
-    Notify ("Undo activated, undoing actions...")
-    SarahsAutoRuleUserForm.UndoButton.Visible = False
-    MoveBack
-    Notify ("Sarah's AutoRule finished, again")
-End Sub
