@@ -49,14 +49,14 @@ Sub AutoRule()
     blnFoundTarget = False
     m_strNote = ""
     blnFoundRule = False
-    strGrpFolder = "Contact Groups"  'default setting
-    'arrWords = Array("deadline", "urgent", "renew", "important", "quote", "respond", "waiting", "enroll", "fair", "submit", "meeting", "register", "expire", "expiration", "schedule", "remind")   'my words
+    strGrpFolder = "Contact Groups"
     blnNewRule = False
     blnButton = False
     blnMove = False
     blnAddAddy = False
     intProceed = vbNo
     m_strChanges = ""
+    g_arrWords = Array()
     
     'show notification box & propsed changes
     frmStatus.Show
