@@ -45,13 +45,15 @@ Private Sub cmdSave_Click()
     Dim objChildFldr    As MSXML2.IXMLDOMElement
     Dim objChildTo      As MSXML2.IXMLDOMElement
     Dim objChildWords   As MSXML2.IXMLDOMElement
-    Dim objChildList    As MSXML2.IXMLDOMNode
-    Dim objChildWord    As MSXML2.IXMLDOMNode
+    Dim objChildList    As MSXML2.IXMLDOMElement
+    Dim objChildWord    As MSXML2.IXMLDOMElement
     Dim strWord         As Variant
+    Dim objChildListLst As MSXML2.IXMLDOMNodeList
+    Dim blnFound        As Boolean
     
     strBasePath = Environ("AppData")
     strMyPath = "\Munchicken\"
-    strFilename = "Settings.xml"
+    strFilename = "config.xml"
     strAppPath = "SarahsAutoRule"
     blnFound = False
     g_strUserGrpFolder = Me.txtFolder.Text
@@ -74,7 +76,7 @@ Private Sub cmdSave_Click()
     End If
     
     'create file if necesary
-    strExists = Dir(strBasePath + strMyPath + strAppPath + strFilename, vbNormal)
+    strExists = Dir(strBasePath & strMyPath & strAppPath & "\" & strFilename, vbNormal)
     If StrComp(strExists, strFilename, vbTextCompare) <> 0 Then
         'create
         Set xmlDoc = New DOMDocument60
@@ -93,50 +95,72 @@ Private Sub cmdSave_Click()
         Set objChildWords = xmlDoc.createElement("Words")
         objRoot.appendChild objChildWords
         Call objChildWords.setAttribute("Setting", Me.chkWords.Value)
-        'create word list node
+        'create word list element
         Set objChildList = xmlDoc.createElement("List")
         objChildWords.appendChild objChildList
         'create word elements
-        'Array.Sort(g_arrWords)
         For Each strWord In g_arrWords
             Set objChildWord = xmlDoc.createElement("Word")
-            objChildWord.Text = strWord
+            objChildWord.Text = CStr(strWord)
             objChildList.appendChild objChildWord
         Next
         'save file
         xmlDoc.Save (strBasePath & strMyPath & strAppPath & "\config.xml")
+        Debug.Print "file created"
     Else
         'modify
         Set xmlDoc = New DOMDocument60
         xmlDoc.Load (strBasePath & strMyPath & strAppPath & "\config.xml")
         'change folder element
-        Set objChildFldr = xmlDoc.getElementsByTagName("Folder")
+        Set objChildFldr = xmlDoc.SelectSingleNode("//Settings/Folder")
         If StrComp(objChildFldr.getAttribute("Name"), Me.txtFolder.Text, vbTextCompare) <> 0 Then
-            Call objChildFlder.setAttribute("Name", Me.txtFolder.Text)
+            Call objChildFldr.setAttribute("Name", Me.txtFolder.Text)
         End If
         'change ToCC element
-        Set objChildTo = xmlDoc.getElementsByTagName("ToCC")
-        If objChildTo.getAttribute("ToCC") <> Me.chkToCc.Value Then
+        Set objChildTo = xmlDoc.SelectSingleNode("//Settings/ToCC")
+        If objChildTo.getAttribute("Setting") <> Me.chkToCc.Value Then
             Call objChildTo.setAttribute("Setting", Me.chkToCc.Value)
         End If
         'change Words element
-        Set objChildWords = xmlDoc.getElementsByTagName("Words")
-        If objChildWords.getAttribute("Words") <> Me.chkWords.Value Then
+        Set objChildWords = xmlDoc.SelectSingleNode("//Settings/Words")
+        If objChildWords.getAttribute("Setting") <> Me.chkWords.Value Then
             Call objChildWords.setAttribute("Setting", Me.chkWords.Value)
         End If
         'change word list node
-        Set objChildList = xmlDoc.getElementsByTagName("List")
-        
-        ' *** should sort array alphebaticaly, then compare, then erase/replace
-        ' ** how to read each element and then comapre & erase
-        ' * temp using same method as before
+        Set objChildList = xmlDoc.SelectSingleNode("//Settings/Words/List")
+        Set objChildListLst = xmlDoc.SelectSingleNode("//Settings/Words/List").ChildNodes
+        'check for deletion
+        For Each objChildWord In objChildListLst
+            For Each strWord In g_arrWords
+                If StrComp(objChildWord.Text, CStr(strWord), vbTextCompare) <> 0 Then
+                    'not found, so get rid of it
+                    objChildList.RemoveChild objChildWord
+                Else
+                    'found, so keep it
+                    Exit For
+                End If
+            Next strWord
+        Next objChildWord
+        'check for addition
         For Each strWord In g_arrWords
-            Set objChildWord = xmlDoc.createElement("Word")
-            objChildWord.Text = strWord
-            objChildList.appendChild objChildWord
-        Next
+            blnFound = False
+            For Each objChildWord In objChildListLst
+                If StrComp(CStr(strWord), objChildWord.Text, vbTextCompare) = 0 Then
+                    'match we already found, set found so we don't add it later
+                    blnFound = True
+                End If
+            Next objChildWord
+            If blnFound = False Then
+                'not found, so we add it
+                Set objChildWord = xmlDoc.createElement("Word")
+                objChildWord.Text = CStr(strWord)
+                objChildList.appendChild objChildWord
+            End If
+        Next strWord
+
         'save file
         xmlDoc.Save (strBasePath & strMyPath & strAppPath & "\config.xml")
+        Debug.Print "File modified"
     End If
     
     'end
