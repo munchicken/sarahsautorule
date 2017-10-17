@@ -20,6 +20,10 @@ Private Sub chkWords_Click()
     End If
 End Sub
 
+Private Sub cmdClose_Click()
+    Unload Me
+End Sub
+
 Private Sub cmdLoadDefault_Click()
     Me.txtFolder.Text = "Contact Groups"
     Me.chkToCc.Value = True
@@ -50,6 +54,7 @@ Private Sub cmdSave_Click()
     Dim strWord         As Variant
     Dim objChildListLst As MSXML2.IXMLDOMNodeList
     Dim blnFound        As Boolean
+    Dim blnChanged      As Boolean
     
     strBasePath = Environ("AppData")
     strMyPath = "\Munchicken\"
@@ -59,6 +64,7 @@ Private Sub cmdSave_Click()
     g_strUserGrpFolder = Me.txtFolder.Text
     g_blnToCc = Me.chkToCc.Value
     g_blnWords = Me.chkWords.Value
+    blnChanged = False
     
     'catch exceptions on filesystem operations
     On Error GoTo cmdSave_Click_Err
@@ -106,7 +112,6 @@ Private Sub cmdSave_Click()
         Next
         'save file
         xmlDoc.Save (strBasePath & strMyPath & strAppPath & "\config.xml")
-        Debug.Print "file created"
     Else
         'modify
         Set xmlDoc = New DOMDocument60
@@ -115,52 +120,69 @@ Private Sub cmdSave_Click()
         Set objChildFldr = xmlDoc.SelectSingleNode("//Settings/Folder")
         If StrComp(objChildFldr.getAttribute("Name"), Me.txtFolder.Text, vbTextCompare) <> 0 Then
             Call objChildFldr.setAttribute("Name", Me.txtFolder.Text)
+            blnChanged = True
         End If
         'change ToCC element
         Set objChildTo = xmlDoc.SelectSingleNode("//Settings/ToCC")
-        If objChildTo.getAttribute("Setting") <> Me.chkToCc.Value Then
+        If CInt(objChildTo.getAttribute("Setting")) <> Me.chkToCc.Value Then
             Call objChildTo.setAttribute("Setting", Me.chkToCc.Value)
+            blnChanged = True
         End If
         'change Words element
         Set objChildWords = xmlDoc.SelectSingleNode("//Settings/Words")
-        If objChildWords.getAttribute("Setting") <> Me.chkWords.Value Then
+        If CInt(objChildWords.getAttribute("Setting")) <> Me.chkWords.Value Then
             Call objChildWords.setAttribute("Setting", Me.chkWords.Value)
+            blnChanged = True
         End If
         'change word list node
         Set objChildList = xmlDoc.SelectSingleNode("//Settings/Words/List")
         Set objChildListLst = xmlDoc.SelectSingleNode("//Settings/Words/List").ChildNodes
         'check for deletion
-        For Each objChildWord In objChildListLst
+        'is word list empty?
+        If ((objChildListLst.Length > 0) And (UBound(g_arrWords) > -1)) Then
+            For Each objChildWord In objChildListLst
+                For Each strWord In g_arrWords
+                    If StrComp(objChildWord.Text, CStr(strWord), vbTextCompare) <> 0 Then
+                        'not found, so get rid of it
+                        objChildList.RemoveChild objChildWord
+                        blnChanged = True
+                    Else
+                        'found, so keep it
+                        Exit For
+                    End If
+                Next strWord
+            Next objChildWord
+        End If
+        'check for delete all
+        If (UBound(g_arrWords) = -1) Then
+            For Each objChildWord In objChildListLst
+                objChildList.RemoveChild objChildWord
+                blnChanged = True
+            Next objChildWord
+        End If
+        'check for addition
+        If (UBound(g_arrWords) > -1) Then
             For Each strWord In g_arrWords
-                If StrComp(objChildWord.Text, CStr(strWord), vbTextCompare) <> 0 Then
-                    'not found, so get rid of it
-                    objChildList.RemoveChild objChildWord
-                Else
-                    'found, so keep it
-                    Exit For
+                blnFound = False
+                For Each objChildWord In objChildListLst
+                    If StrComp(CStr(strWord), objChildWord.Text, vbTextCompare) = 0 Then
+                        'match we already found, set found so we don't add it later
+                        blnFound = True
+                    End If
+                Next objChildWord
+                If blnFound = False Then
+                    'not found, so we add it
+                    Set objChildWord = xmlDoc.createElement("Word")
+                    objChildWord.Text = CStr(strWord)
+                    objChildList.appendChild objChildWord
+                    blnChanged = True
                 End If
             Next strWord
-        Next objChildWord
-        'check for addition
-        For Each strWord In g_arrWords
-            blnFound = False
-            For Each objChildWord In objChildListLst
-                If StrComp(CStr(strWord), objChildWord.Text, vbTextCompare) = 0 Then
-                    'match we already found, set found so we don't add it later
-                    blnFound = True
-                End If
-            Next objChildWord
-            If blnFound = False Then
-                'not found, so we add it
-                Set objChildWord = xmlDoc.createElement("Word")
-                objChildWord.Text = CStr(strWord)
-                objChildList.appendChild objChildWord
-            End If
-        Next strWord
-
+        End If
         'save file
-        xmlDoc.Save (strBasePath & strMyPath & strAppPath & "\config.xml")
-        Debug.Print "File modified"
+        If blnChanged Then
+            xmlDoc.Save (strBasePath & strMyPath & strAppPath & "\config.xml")
+        End If
     End If
     
     'end
