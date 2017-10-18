@@ -1,7 +1,7 @@
 VERSION 5.00
 Begin {C62A69F0-16DC-11CE-9E98-00AA00574A4F} frmSettings 
    Caption         =   "Settings for New Rule"
-   ClientHeight    =   4935
+   ClientHeight    =   5520
    ClientLeft      =   120
    ClientTop       =   465
    ClientWidth     =   3705
@@ -33,8 +33,64 @@ Private Sub cmdLoadDefault_Click()
 End Sub
 
 Private Sub cmdLoadUser_Click()
-    'look at modify in save_click
-    'may need some variables from save_click
+    Dim xmlDoc          As MSXML2.DOMDocument60
+    Dim strBasePath     As String
+    Dim strMyPath       As String
+    Dim strFilename     As String
+    Dim strAppPath      As String
+    Dim objChildFldr    As MSXML2.IXMLDOMElement
+    Dim objChildTo      As MSXML2.IXMLDOMElement
+    Dim objChildWords   As MSXML2.IXMLDOMElement
+    Dim objChildListLst As MSXML2.IXMLDOMNodeList
+
+    'initalize
+    strBasePath = Environ("AppData")
+    strMyPath = "\Munchicken\"
+    strFilename = "config.xml"
+    strAppPath = "SarahsAutoRule"
+
+    'catch exceptions on filesystem operations
+    On Error GoTo cmdLoadUser_Click_Err
+
+    'load
+    Set xmlDoc = New DOMDocument60
+    xmlDoc.Load (strBasePath & strMyPath & strAppPath & "\" & strFilename)
+
+    'read folder
+    Set objChildFldr = xmlDoc.SelectSingleNode("//Settings/Folder")
+    Me.txtFolder.Text = objChildFldr.getAttribute("Name")
+
+    'read ToCC element
+    Set objChildTo = xmlDoc.SelectSingleNode("//Settings/ToCC")
+    Me.chkToCc.Value = CBool(objChildTo.getAttribute("Setting"))
+
+    'read Words element
+    Set objChildWords = xmlDoc.SelectSingleNode("//Settings/Words")
+    Me.chkWords.Value = CBool(objChildWords.getAttribute("Setting"))
+
+    'read word list node
+    Set objChildListLst = xmlDoc.SelectSingleNode("//Settings/Words/List").ChildNodes
+    'Me.txtWords.Text = objChildListLst
+    Me.txtWords.Text = "test" & vbCrLf & "test2" & vbCrLf & "test3"
+
+    'end
+    GoTo cmdLoadUser_Click_Exit
+
+    'error handler
+cmdLoadUser_Click_Err:
+    intInput = MsgBox("Unable to load settings " & strBasePath & strMyPath & strAppPath & "\" & strFilename, vbOKOnly + vbCritical + vbDefaultButton1 + vbApplicationModal, "Error Encountered (" & Err.Number & ")")
+    If intInput = vbOK Then
+        Unload Me
+    End If
+
+    'exit
+cmdLoadUser_Click_Exit:
+    'clear objects
+    Set objChildFldr = Nothing
+    Set objChildTo = Nothing
+    Set objChildWords = Nothing
+    'Set objChildList = Nothing
+    Set objChildListLst = Nothing
 End Sub
 
 Private Sub cmdSave_Click()
@@ -55,7 +111,9 @@ Private Sub cmdSave_Click()
     Dim objChildListLst As MSXML2.IXMLDOMNodeList
     Dim blnFound        As Boolean
     Dim blnChanged      As Boolean
+    Dim blnKeep         As Boolean
     
+    'initalize
     strBasePath = Environ("AppData")
     strMyPath = "\Munchicken\"
     strFilename = "config.xml"
@@ -111,11 +169,11 @@ Private Sub cmdSave_Click()
             objChildList.appendChild objChildWord
         Next
         'save file
-        xmlDoc.Save (strBasePath & strMyPath & strAppPath & "\config.xml")
+        xmlDoc.Save (strBasePath & strMyPath & strAppPath & "\" & strFilename)
     Else
         'modify
         Set xmlDoc = New DOMDocument60
-        xmlDoc.Load (strBasePath & strMyPath & strAppPath & "\config.xml")
+        xmlDoc.Load (strBasePath & strMyPath & strAppPath & "\" & strFilename)
         'change folder element
         Set objChildFldr = xmlDoc.SelectSingleNode("//Settings/Folder")
         If StrComp(objChildFldr.getAttribute("Name"), Me.txtFolder.Text, vbTextCompare) <> 0 Then
@@ -141,16 +199,19 @@ Private Sub cmdSave_Click()
         'is word list empty?
         If ((objChildListLst.Length > 0) And (UBound(g_arrWords) > -1)) Then
             For Each objChildWord In objChildListLst
+                blnKeep = False
                 For Each strWord In g_arrWords
-                    If StrComp(objChildWord.Text, CStr(strWord), vbTextCompare) <> 0 Then
-                        'not found, so get rid of it
-                        objChildList.RemoveChild objChildWord
-                        blnChanged = True
-                    Else
+                    If StrComp(objChildWord.Text, CStr(strWord), vbTextCompare) = 0 Then
                         'found, so keep it
                         Exit For
+                        blnKeep = True
                     End If
                 Next strWord
+                If blnKeep = False Then
+                    'not found, so get rid of it
+                    objChildList.RemoveChild objChildWord
+                    blnChanged = True
+                End If
             Next objChildWord
         End If
         'check for delete all
@@ -181,27 +242,30 @@ Private Sub cmdSave_Click()
         End If
         'save file
         If blnChanged Then
-            xmlDoc.Save (strBasePath & strMyPath & strAppPath & "\config.xml")
+            xmlDoc.Save (strBasePath & strMyPath & strAppPath & "\" & strFilename)
         End If
     End If
     
     'end
     GoTo cmdSave_Click_Exit
     
-'error handler
+    'error handler
 cmdSave_Click_Err:
-    intInput = MsgBox("Unable to save settings " & strBasePath & strMyPath & strAppPath, vbOKOnly + vbCritical + vbDefaultButton1 + vbApplicationModal, "Error Encountered (" & Err.Number & ")")
+    intInput = MsgBox("Unable to save settings " & strBasePath & strMyPath & strAppPath & "\" & strFilename, vbOKOnly + vbCritical + vbDefaultButton1 + vbApplicationModal, "Error Encountered (" & Err.Number & ")")
     If intInput = vbOK Then
         Unload Me
     End If
-'exit
+
+    'exit
 cmdSave_Click_Exit:
+    'clear objects
     Set xmlDoc = Nothing
     Set objRoot = Nothing
     Set objChildFldr = Nothing
     Set objChildTo = Nothing
     Set objChildWords = Nothing
     Set objChildList = Nothing
-    Unload Me
+    Set objChildListLst = Nothing
+    Set objChildWord = Nothing
 End Sub
 
